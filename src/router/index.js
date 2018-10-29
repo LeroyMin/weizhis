@@ -1,56 +1,26 @@
-/**
- * 全站路由配置
- *
- * 建议:
- * 1. 代码中路由统一使用name属性跳转(不使用path属性)
- */
 import Vue from 'vue'
 import Router from 'vue-router'
-import http from '@/utils/httpUtils'
-import { isURL } from '@/utils/validate'
-import { clearLoginInfo } from '@/utils'
+import { mainRoutes, globalRoutes } from './routers'
+import store from '@/store'
+import iView from 'iview'
+import { setToken, getToken, canTurnTo } from '@/libs/util'
+import { isURL } from '@/libs/tools'
+import config from '@/config'
+import { getMenu } from '@/api/routers'
+const { homeName } = config
 
 Vue.use(Router)
-
-// 开发环境不使用懒加载, 因为懒加载页面太多的话会造成webpack热更新太慢, 所以只有生产环境使用懒加载
-const _import = require('./import-' + process.env.NODE_ENV)
-
-// 全局路由(无需嵌套上左右整体布局)
-const globalRoutes = [
-  { path: '/404', component: _import('common/404'), name: '404', meta: { title: '404未找到' } },
-  { path: '/login', component: _import('common/Login'), name: 'login', meta: { title: '登录' } }
-]
-
-// 主入口路由(需嵌套上左右整体布局)
-const mainRoutes = {
-  path: '/',
-  component: _import('maino'),
-  name: 'main',
-  redirect: { name: 'home' },
-  meta: { title: '主入口整体布局' },
-  children: [
-    // 通过meta对象设置路由展示方式
-    // 1. isTab: 是否通过tab展示内容, true: 是, false: 否
-    // 2. iframeUrl: 是否通过iframe嵌套展示内容, '以http[s]://开头': 是, '': 否
-    // 提示: 如需要通过iframe嵌套展示内容, 但不通过tab打开, 请自行创建组件使用iframe处理!
-    { path: '/home', component: _import('common/Home'), name: 'home', meta: { title: '首页' } }
-  ],
-  beforeEnter (to, from, next) {
-    let token = Vue.cookie.get('token')
-    if (!token || !/\S/.test(token)) {
-      clearLoginInfo()
-      next({ name: 'login' })
-    }
-    next()
-  }
-}
-
 const router = new Router({
-  mode: 'hash',
-  scrollBehavior: () => ({ y: 0 }),
-  isAddDynamicMenuRoutes: false, // 是否已经添加动态(菜单)路由
-  routes: globalRoutes.concat(mainRoutes)
+  routes: globalRoutes.concat(mainRoutes),
+  isAddDynamicMenuRoutes: false,
+  mode: 'history'
 })
+const LOGIN_PAGE_NAME = 'login'
+
+const turnTo = (to, access, next) => {
+  if (canTurnTo(to.name, access, routes)) next() // 有权限，可访问
+  else next({ replace: true, name: 'error_401' }) // 无权限，重定向到401页面
+}
 
 router.beforeEach((to, from, next) => {
   // 添加动态(菜单)路由
@@ -59,28 +29,61 @@ router.beforeEach((to, from, next) => {
   if (router.options.isAddDynamicMenuRoutes || fnCurrentRouteType(to, globalRoutes) === 'global') {
     next()
   } else {
-    http({
-      url: http.adornUrl('/sys/menu/user'),
-      method: 'post',
-      params: http.adornParams()
-    }).then(({data}) => {
+    getMenu().then(res =>{
+      let data = res.data
       if (data && data.sucess === true) {
         fnAddDynamicMenuRoutes(data.data.menuList)
         router.options.isAddDynamicMenuRoutes = true
         sessionStorage.setItem('menuList', JSON.stringify(data.data.menuList || '[]'))
         sessionStorage.setItem('permissions', JSON.stringify(data.data.permissions || '[]'))
         next({ ...to, replace: true })
+        // turnTo(to, ['admin'], next)
       } else {
         sessionStorage.setItem('menuList', '[]')
         sessionStorage.setItem('permissions', '[]')
         next()
+        // turnTo(to, ['admin'], next)
       }
-    }).catch((e) => {
+    }).catch(e =>{
       console.log(`%c${e} 请求菜单列表和权限失败，跳转至登录页！！`, 'color:blue')
-      router.push({ name: 'login' })
+      router.push({ name: LOGIN_PAGE_NAME })
     })
   }
 })
+
+// router.beforeEach((to, from, next) => {
+//   iView.LoadingBar.start()
+//   const token = getToken()
+//   if (!token && to.name !== LOGIN_PAGE_NAME) {
+//     // 未登录且要跳转的页面不是登录页
+//     next({
+//       name: LOGIN_PAGE_NAME // 跳转到登录页
+//     })
+//   } else if (!token && to.name === LOGIN_PAGE_NAME) {
+//     // 未登陆且要跳转的页面是登录页
+//     next() // 跳转
+//   } else if (token && to.name === LOGIN_PAGE_NAME) {
+//     // 已登录且要跳转的页面是登录页
+//     next({
+//       name: homeName // 跳转到homeName页
+//     })
+//   } else {
+//     console.log(store.state.user.hasGetInfo)
+//     if (store.state.user.hasGetInfo) {
+//       turnTo(to, store.state.user.access, next)
+//     } else {
+//       store.dispatch('getUserInfo').then(user => {
+//         // 拉取用户信息，通过用户权限和跳转的页面的name来判断是否有权限访问;access必须是一个数组，如：['super_admin'] ['super_admin', 'admin']
+//         turnTo(to, user.access, next)
+//       }).catch(() => {
+//         setToken('')
+//         next({
+//           name: 'login'
+//         })
+//       })
+//     }
+//   }
+// })
 
 /**
  * 判断当前路由类型, global: 全局路由, main: 主入口路由
@@ -106,38 +109,44 @@ function fnCurrentRouteType (route, globalRoutes = []) {
 function fnAddDynamicMenuRoutes (menuList = [], routes = []) {
   var temp = []
   for (var i = 0; i < menuList.length; i++) {
-    if (menuList[i].list && menuList[i].list.length >= 1) {
-      temp = temp.concat(menuList[i].list)
-    } else if (menuList[i].murl && /\S/.test(menuList[i].murl)) {
-      menuList[i].murl = menuList[i].murl.replace(/^\//, '')
+    if (menuList[i].children && menuList[i].children.length >= 1) {
+      console.log('%c!<-------------------- 111 -------------------->', 'color:red')
+      temp = temp.concat(menuList[i].children)
+    } else if (menuList[i].url && /\S/.test(menuList[i].url)) {
+      console.log('%c!<-------------------- 222 -------------------->', 'color:red')
+      menuList[i].url = menuList[i].url.replace(/^\//, '')
       var route = {
-        path: menuList[i].murl.replace('/', '-'),
+        path: menuList[i].url.replace('/', '-'),
         component: null,
-        name: menuList[i].murl.replace('/', '-'),
+        name: menuList[i].url.replace('/', '-'),
         meta: {
-          menuId: menuList[i].mid,
-          title: menuList[i].mname,
+          menuId: menuList[i].id,
+          title: menuList[i].name,
+          nameCN: menuList[i].name,
           isDynamic: true,
           isTab: true,
           iframeUrl: ''
         }
       }
       // url以http[s]://开头, 通过iframe展示
-      if (isURL(menuList[i].murl)) {
-        route['path'] = `i-${menuList[i].mid}`
-        route['name'] = `i-${menuList[i].mid}`
-        route['meta']['iframeUrl'] = menuList[i].murl
+      if (isURL(menuList[i].url)) {
+        route['path'] = `i-${menuList[i].url}`
+        route['name'] = `i-${menuList[i].id}`
+        route['meta']['iframeUrl'] = menuList[i].url
       } else {
+        console.log('%c!<-------------------- 333 -------------------->', 'color:red')
         try {
-          route['component'] = _import(`modules/${menuList[i].murl}`) || null
+          route['component'] = _import(`modules/${menuList[i].url}`) || null
         } catch (e) {}
       }
       routes.push(route)
     }
   }
   if (temp.length >= 1) {
+    console.log('%c!<-------------------- 444 -------------------->', 'color:red')
     fnAddDynamicMenuRoutes(temp, routes)
   } else {
+    console.log('%c!<-------------------- 555 -------------------->', 'color:red')
     mainRoutes.name = 'main-dynamic'
     mainRoutes.children = routes
     router.addRoutes([
@@ -151,5 +160,11 @@ function fnAddDynamicMenuRoutes (menuList = [], routes = []) {
     console.log('%c!<-------------------- 动态(菜单)路由 e -------------------->', 'color:blue')
   }
 }
+
+
+router.afterEach(to => {
+  iView.LoadingBar.finish()
+  window.scrollTo(0, 0)
+})
 
 export default router

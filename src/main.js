@@ -4,34 +4,43 @@ import Vue from 'vue'
 import App from './App'
 import router from './router'
 import store from './store'
-import VueCookie from 'vue-cookie'
-import httpRequest from '@/utils/httpUtils'
-import { isAuth } from '@/utils'
-import cloneDeep from 'lodash/cloneDeep'
 import iView from 'iview'
+import i18n from '@/locale'
+import config from '@/config'
+import importDirective from '@/directive'
+import installPlugin from '@/plugin'
 import 'iview/dist/styles/iview.css'
 import './index.less'
 import '@/assets/icons/iconfont.css'
+// 实际打包时应该不引入mock
+/* eslint-disable */
+if (process.env.NODE_ENV !== 'production') require('@/mock')
 
-Vue.use(VueCookie)
-Vue.use(iView)
+Vue.use(iView, {
+  i18n: (key, value) => i18n.t(key, value)
+})
+/**
+ * @description 注册admin内置插件
+ */
+installPlugin(Vue)
+/**
+ * @description 生产环境关掉提示
+ */
 Vue.config.productionTip = false
-
-// 挂载全局
-Vue.prototype.$http = httpRequest // ajax请求方法
-Vue.prototype.isAuth = isAuth     // 权限方法
-
-// // api接口请求地址
-// window.SITE_CONFIG['baseUrl'] = 'http://localhost:8081/cms';
-
-// 保存整站vuex本地储存初始状态
-// window.SITE_CONFIG['storeState'] = cloneDeep(store.state)
+/**
+ * @description 全局注册应用配置
+ */
+Vue.prototype.$config = config
+/**
+ * 注册指令
+ */
+importDirective(Vue)
 
 /* eslint-disable no-new */
 new Vue({
   el: '#app',
   router,
+  i18n,
   store,
-  components: { App },
-  template: '<App/>'
+  render: h => h(App)
 })
