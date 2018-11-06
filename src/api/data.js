@@ -1,9 +1,10 @@
 import axios from '@/libs/api.request'
 
-export const getTableData = () => {
+export const getTableData = (page) => {
   return axios.request({
-    url: 'get_table_data',
-    method: 'get'
+    url: '/sys/user/list',
+     data: page,
+    method: 'post'
   })
 }
 
