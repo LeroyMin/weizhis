@@ -1,7 +1,7 @@
 <template>
   <div>
     <Card>
-      <tables ref="tables" editable searchable search-place="top" v-model="tableData" :columns="columns" :buttons="buttons" @on-delete="handleDelete"/>
+      <tables ref="tables" editable searchable search-place="top" v-model="tableData" :columns="columns" :buttons="buttons" @on-click="action" @on-delete="handleDelete"/>
       <Page :total="page.total" :page-size="page.limit" :current="page.page" show-elevator />
     </Card>
   </div>
@@ -10,6 +10,7 @@
 <script>
 import Tables from '_c/tables'
 import { getTableData } from '@/api/data'
+import { addUser } from '@/api/sysuser'
 export default {
   name: 'user',
   components: {
@@ -70,11 +71,18 @@ export default {
       	{
       		text: '新增',
       		icon: 'ios-add',
-      		acton: 'add',
+      		action: 'add',
       		key: 'add',
       		type: 'primary'
       	}
-      ]
+      ],
+      newUserInfo: {
+      	userName: '',
+      	password: '',
+      	email: '',
+      	mobile: ''
+      },
+      roleList:[]
     }
   },
   methods: {
@@ -160,6 +168,97 @@ export default {
         	content: `确定要冻结用户 ${this.tableData[index].userName}?`
         })
     },
+    action(name){
+    	// 新增
+    	if (name === 'add') {
+	    		this.$Modal.confirm({
+	        	title: '新增用户',
+	        	okText: '保存',
+	            cancelText: '取消',
+	            onOk: () => {addUser(this.newUserInfo)},
+	            onCancel: () => {this.$Modal.remove()},
+	        	render: (h, params,vm) => {
+	        		return h('Form',{
+	        			props: {
+	        				'label-position': 'left',
+	        				'label-width': 60
+	        			}
+	        		},[
+	        			h('FormItem',{
+	        				props: {
+	        					label: '用户名'
+	        				}
+	        			},[
+	        				h('Input',{
+	        					props: {
+	        						type: 'text',
+	        						value: this.newUserInfo.userName
+	        					},
+	        					on: {input: (value) => { this.newUserInfo.userName = value }}
+	        				})
+	        			]),
+	        			h('FormItem',{
+	        				props: {
+	        					label: '密码'
+	        				}
+	        			},[
+	        				h('Input',{
+	        					props: {
+	        						type: 'text',
+	        						value: this.newUserInfo.password
+	        					},
+	        					on: {input: (value) => { this.newUserInfo.password = value }}
+	        				})
+	        			]),
+	        			h('FormItem',{
+	        				props: {
+	        					label: '邮箱'
+	        				}
+	        			},[
+	        				h('Input',{
+	        					props:{
+	        						type: 'email',
+	        						value: this.newUserInfo.email
+	        					},
+	        					on: {input: (value) => { this.newUserInfo.email = value }}
+	        				})
+	        			]),
+	        			h('FormItem',{
+	        				props: {
+	        					label: '手机号'
+	        				}
+	        			},[
+	        				h('Input',{
+	        					props: {
+	        						type: 'text',
+	        						value: this.newUserInfo.mobile
+	        					},
+	        					on: {input: (value) => { this.newUserInfo.mobile = value }}
+	        				})
+	        			]),
+	        			h('FormItem',{
+	        				props: {
+	        					label: '角色'
+	        				}
+	        			},[
+	        				h('Select',{
+	        					props:{
+	        						value: this.roleList
+	        					},
+	        				},[
+	        					h('Option',{
+	        						props: {
+	        							
+	        						}
+	        					},'缺省')
+	        				])
+	        			])
+	        		])
+	        	}
+        	})
+    	}
+    },
+    getRoleList(){},
     exportExcel () {
       this.$refs.tables.exportCsv({
         filename: `table-${(new Date()).valueOf()}.csv`

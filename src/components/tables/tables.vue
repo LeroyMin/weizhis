@@ -1,7 +1,7 @@
 <template>
   <div>
     <div v-if="buttons">
-      <Button v-for="button in buttons" :key="button.key" :type="button.type"><Icon type="button.iocn"/>{{button.text}}</Button>
+      <Button v-for="button in buttons" @click="action(button.action)" :key="button.key" :type="button.type"><Icon type="button.iocn"/>{{button.text}}</Button>
     </div>
     <div v-if="searchable && searchPlace === 'top'" class="search-con search-con-top">
       <Select v-model="searchKey" class="search-col">
@@ -265,6 +265,9 @@ export default {
     },
     onExpand (row, status) {
       this.$emit('on-expand', row, status)
+    },
+    action(name) {
+      this.$emit('on-click', name)
     }
   },
   watch: {
