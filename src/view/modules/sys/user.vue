@@ -11,6 +11,7 @@
 import Tables from '_c/tables'
 import { getTableData } from '@/api/data'
 import { addUser } from '@/api/sysuser'
+import { getRoleList } from '@/api/sysrole'
 export default {
   name: 'user',
   components: {
@@ -82,6 +83,14 @@ export default {
       	email: '',
       	mobile: ''
       },
+      userForm: {
+      	userId: '',
+      	userName: '',
+      	password: '',
+      	email: '',
+      	mobile: '',
+      	roleIdList: []
+      },
       roleList:[]
     }
   },
@@ -116,7 +125,8 @@ export default {
                     					readonly: true,
                     					disabled: true,
                     					value: this.tableData[index].userId
-                    				}
+                    				},
+                    				on: {input: (value) => { this.userForm.userId = value }}
                     			})
                     			]),
                     		h('FormItem',{
@@ -128,7 +138,8 @@ export default {
                     				props: {
                     					type: 'text',
                     					value: this.tableData[index].userName
-                    				}
+                    				},
+                    				on: {input: (value) => { this.userForm.userName = value }}
                     			})
                     			]),
                     		h('FormItem',{
@@ -140,7 +151,8 @@ export default {
                     				props: {
                     					type: 'text',
                     					value: this.tableData[index].email
-                    				}
+                    				},
+                    				on: {input: (value) => { this.userForm.email = value }}
                     			})
                     			]),
                     		h('FormItem',{
@@ -152,9 +164,24 @@ export default {
                     				props: {
                     					type: 'text',
                     					value: this.tableData[index].mobile
-                    				}
+                    				},
+                    				on: {input: (value) => { this.userForm.mobile = value }}
                     			})
-                    			])
+                    			]),
+                    		h('FormItem',{
+                    			props: {
+                    				label: '角色'
+                    			}
+                    		},[
+                    			h('Select',this.roleList.map((item)=>{
+                    				return h('Option',{
+                    					props: {
+                    						value: item.roleId,
+	        								label: item.roleName
+                    					}
+                    				})
+                    			}))
+                    		])
                     		])
                     }
                 })
@@ -241,17 +268,14 @@ export default {
 	        					label: '角色'
 	        				}
 	        			},[
-	        				h('Select',{
-	        					props:{
-	        						value: this.roleList
-	        					},
-	        				},[
-	        					h('Option',{
-	        						props: {
-	        							
+	        				h('Select',this.roleList.map((item)=>{
+	        					return h('Option',{
+	        						props:{
+	        							value: item.roleId,
+	        							label: item.roleName
 	        						}
-	        					},'缺省')
-	        				])
+	        					})
+	        				}))
 	        			])
 	        		])
 	        	}
@@ -275,7 +299,18 @@ export default {
     	}else{
     		this.$Message.err(res.data.message)
     	}
-    })
+    }),
+    getRoleList({
+    	total: 100,
+      	page: 1,
+      	limit: 999}).then(res => {
+      		console.log(res)
+      		if(res.data&&res.data.sucess){
+      			this.roleList = res.data.data.list
+      		}else{
+      			console.err("加载角色信息出错")
+      		}
+      	})
   }
 }
 </script>
