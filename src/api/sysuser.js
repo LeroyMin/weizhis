@@ -3,29 +3,29 @@ import axios from '@/libs/api.request'
 export const addUser = (userInfo) => {
   return axios.request({
     url: '/sys/user/save',
-     data: userInfo,
+    data: userInfo,
     method: 'post'
   })
 }
 
-export const getDragList = () => {
+export const getUserInfo = (userId) => {
   return axios.request({
-    url: 'get_drag_list',
+    url: `/sys/user/info/${userId}`,
     method: 'get'
   })
 }
 
-export const errorReq = () => {
+export const updateUser = (userInfo) => {
   return axios.request({
-    url: 'error_url',
+    url: '/sys/user/update',
+    data: userInfo,
     method: 'post'
   })
 }
 
-export const saveErrorLogger = info => {
+export const remove = (userId) => {
   return axios.request({
-    // url: 'save_error_logger',
-    // data: info,
-    // method: 'post'
+    url: `/sys/user/remove/${userId}`,
+    method: 'get'
   })
 }

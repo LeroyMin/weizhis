@@ -10,7 +10,7 @@
 <script>
 import Tables from '_c/tables'
 import { getTableData } from '@/api/data'
-import { addUser } from '@/api/sysuser'
+import { addUser,getUserInfo,updateUser,remove } from '@/api/sysuser'
 import { getRoleList } from '@/api/sysrole'
 export default {
   name: 'user',
@@ -64,9 +64,9 @@ export default {
         ],
       tableData: [],
       page: {
-      	total: 100,
+      	total: 0,
       	page: 1,
-      	limit: 10
+      	limit: 5
       },
       buttons:[
       	{
@@ -81,7 +81,8 @@ export default {
       	userName: '',
       	password: '',
       	email: '',
-      	mobile: ''
+      	mobile: '',
+      	roleIdList: []
       },
       userForm: {
       	userId: '',
@@ -99,13 +100,44 @@ export default {
       console.log(params)
     },
     edit(index) {
-    	console.log(index)
+    	getUserInfo(this.tableData[index].userId).then(res => {
+    		if (res.data&&res.data.sucess) {
+    			this.genModel(res.data.data)
+    		}else{
+    			this.$Message(res.data.message)
+    		}
+    	}).catch(err => {
+    		this.$Message("服务器繁忙")
+    	})
+    	
+    },
+    genModel(data){
     	this.$Modal.confirm({
                     title: '编辑',
                     width: 500,
                     closable: false,
                     okText: '保存',
                     cancelText: '取消',
+                    onOk: () => {
+                    	updateUser(this.userForm).then(res=>{
+                    		if (res.data&&res.data.sucess) {
+                    			this.$Notice.success({
+                    				title: '提示信息',
+                    				desc: '更新成功'
+                    			})
+                    		}else{
+                    			this.$Notice.error({
+                    				title: '提示信息',
+                    				desc: `更新失败,${res.data.message}`
+                    			})
+                    		}
+                    	}).catch(err => {
+                    		this.$Notice.error({
+                    				title: '提示信息',
+                    				desc: '更新失败,服务器繁忙'                    			
+                    		})
+                    	})
+                    },
                     onCancel: () => {this.$Modal.remove()},
                     render: (h, params,vm) => {
                     	return h('Form',{
@@ -124,7 +156,7 @@ export default {
                     					type: 'text',
                     					readonly: true,
                     					disabled: true,
-                    					value: this.tableData[index].userId
+                    					value: data.userId
                     				},
                     				on: {input: (value) => { this.userForm.userId = value }}
                     			})
@@ -137,7 +169,7 @@ export default {
                     			h('Input',{
                     				props: {
                     					type: 'text',
-                    					value: this.tableData[index].userName
+                    					value: data.userName
                     				},
                     				on: {input: (value) => { this.userForm.userName = value }}
                     			})
@@ -150,7 +182,7 @@ export default {
                     			h('Input',{
                     				props: {
                     					type: 'text',
-                    					value: this.tableData[index].email
+                    					value: data.email
                     				},
                     				on: {input: (value) => { this.userForm.email = value }}
                     			})
@@ -163,7 +195,7 @@ export default {
                     			h('Input',{
                     				props: {
                     					type: 'text',
-                    					value: this.tableData[index].mobile
+                    					value: data.mobile
                     				},
                     				on: {input: (value) => { this.userForm.mobile = value }}
                     			})
@@ -173,7 +205,14 @@ export default {
                     				label: '角色'
                     			}
                     		},[
-                    			h('Select',this.roleList.map((item)=>{
+                    			h('Select',{
+                    				props: {
+                    					multiple: true,
+                    					placement: 'top',
+                    					value: data.roleIdList
+                    				},
+                    				on: {input: (value) => {this.userForm.roleIdList = value}}
+                    			},this.roleList.map((item)=>{
                     				return h('Option',{
                     					props: {
                     						value: item.roleId,
@@ -191,6 +230,7 @@ export default {
         	title: '是否冻结?',
         	okText: '冻结',
             cancelText: '取消',
+            onOk: () => {remove(this.tableData[index].userId)},
             onCancel: () => {this.$Modal.remove()},
         	content: `确定要冻结用户 ${this.tableData[index].userName}?`
         })
@@ -268,7 +308,13 @@ export default {
 	        					label: '角色'
 	        				}
 	        			},[
-	        				h('Select',this.roleList.map((item)=>{
+	        				h('Select',{
+	        					props:{
+	        						multiple: true,
+	        						placement: 'top'
+	        					},
+	        					on: {input: (value) => {this.newUserInfo.roleIdList=value}}
+	        				},this.roleList.map((item)=>{
 	        					return h('Option',{
 	        						props:{
 	        							value: item.roleId,
